@@ -15,3 +15,9 @@ class BookItem(scrapy.Item):
     category = scrapy.Field()
     updatetm = scrapy.Field()
     introduc = scrapy.Field()
+
+
+class SectionItem(scrapy.Item):
+    # This is a SectionItem represent a section content.
+    section_name = scrapy.Field()
+    section_data = scrapy.Field()
