@@ -10,7 +10,7 @@ class CommonSpider(scrapy.Spider):
     name = 'biquge_scrawler'
 
     def __init__(self):
-        self._debug = True
+        self._debug = False
         pass
 
     # debug, save pages to disk
