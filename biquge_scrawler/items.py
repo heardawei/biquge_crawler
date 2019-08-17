@@ -21,3 +21,8 @@ class SectionItem(scrapy.Item):
     # This is a SectionItem represent a section content.
     section_name = scrapy.Field()
     section_data = scrapy.Field()
+
+
+class CloseItem(scrapy.Item):
+    # This is a CloseItem represent a book reach ends.
+    book_end = scrapy.Field()

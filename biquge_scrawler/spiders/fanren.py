@@ -3,7 +3,7 @@ import scrapy
 import urllib
 import html
 import re
-from biquge_scrawler.items import BookItem
+from biquge_scrawler.items import BookItem, SectionItem, CloseItem
 
 
 class CommonSpider(scrapy.Spider):
@@ -55,6 +55,7 @@ class FanrenSpider(CommonSpider):
     allowed_domains = ['www.biquge.info']
     start_urls = ['https://www.biquge.info/22_22533/']
 
+    # scrawl main info page
     def parse(self, response):
         assert isinstance(response, scrapy.http.Response)
 
@@ -115,5 +116,55 @@ class FanrenSpider(CommonSpider):
         abs_href_1st = response.urljoin(href_1st)
         yield scrapy.Request(abs_href_1st, callback=self.parse_section)
 
+    # scrawl every section page
     def parse_section(self, response):
-        pass
+        assert isinstance(response, scrapy.http.Response)
+
+        # debug
+        x_title = response.css('''title::text''')
+        assert isinstance(x_title, scrapy.selector.SelectorList)
+        title = x_title.extract_first()
+        # print('Section page Title:{}, URL: {}'.format(title, response.url))
+        self.page_2_local(response)
+
+        # content xpath
+        x_content = response.css('''div[class=content_read]''')
+        assert isinstance(x_content, scrapy.selector.SelectorList)
+        x_section_name = x_content.css('''div[class=bookname] h1::text''')
+        assert isinstance(x_section_name, scrapy.selector.SelectorList)
+        x_section_data = x_content.css('''div[id=content]::text''')
+        assert isinstance(x_section_data, scrapy.selector.SelectorList)
+        x_section_bottems = x_content.css('''div[class=bottem] a''')
+        assert isinstance(x_section_bottems, scrapy.selector.SelectorList)
+
+        itm = SectionItem()
+        itm['section_name'] = x_section_name.extract_first()
+        itm['section_data'] = '\r\n'.join(x_section_data.extract())
+
+        yield itm
+
+        # extract next section URL
+        href_section_next = ''
+        for _x_bottem in x_section_bottems:
+            assert isinstance(_x_bottem, scrapy.selector.Selector)
+            button = _x_bottem.css('''a::text''').extract_first()
+            href = _x_bottem.css('''a::attr(href)''').extract_first()
+            if re.match('下\\s*一\\s*章', button):
+                href_section_next = href
+                break
+
+        if href_section_next is None:
+            yield CloseItem()
+            pass
+            print('{} Extrace href section None'.format(title))
+        elif len(href_section_next) == 0:
+            yield CloseItem()
+            pass
+            print('{} Extrace href section len is 0'.format(title))
+        elif href_section_next.endswith('/'):
+            yield CloseItem()
+            pass
+            print('{} This is the last one section.'.format(title))
+        else:
+            href_section_next = response.urljoin(href_section_next)
+            yield scrapy.Request(href_section_next, callback=self.parse_section)
