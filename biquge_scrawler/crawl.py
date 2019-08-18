@@ -13,4 +13,4 @@ os.chdir(project_path)
 
 # 启动爬虫,第三个参数为爬虫name
 # scrapy.cmdline.execute()
-execute(['scrapy', 'crawl', 'fanren'])
+execute(['scrapy', 'crawl', 'biquge'])

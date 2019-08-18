@@ -6,25 +6,28 @@
 # See: https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 
 import scrapy
-from biquge_scrawler.items import BookItem, SectionItem, CloseItem
+from biquge_scrawler.items import BookMainItem, BookSectionItem, BookCloseItem
 
 
 class BookPipeline(object):
     def __init__(self):
-        self.opened_books = None
+        # All books stream store here, key is : item['track']
+        self.opened_books = {}
 
     def process_item(self, item, spider):
         assert isinstance(item, scrapy.Item)
 
-        if isinstance(item, BookItem):
-            self.opened_books = open(item['bookname'] + '.txt', 'wb')
-        elif isinstance(item, SectionItem):
-            self.opened_books.write(
+        if isinstance(item, BookMainItem):
+            bookname = item['bookname'] + '.txt'
+            self.opened_books[item['track']] = open(bookname, 'wb')
+        elif isinstance(item, BookSectionItem):
+            self.opened_books[item['track']].write(
                 item['section_name'].replace('\xa0', '').encode())
-            self.opened_books.write(
+            self.opened_books[item['track']].write(
                 item['section_data'].replace('\xa0', '').encode())
-        elif isinstance(item, CloseItem):
-            self.opened_books.close()
+        elif isinstance(item, BookCloseItem):
+            self.opened_books[item['track']].close()
+            self.opened_books.pop(item['track'])
 
         return item
 

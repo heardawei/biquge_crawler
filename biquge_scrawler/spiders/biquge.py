@@ -3,7 +3,7 @@ import scrapy
 import urllib
 import html
 import re
-from biquge_scrawler.items import BookItem, SectionItem, CloseItem
+from biquge_scrawler.items import BookMainItem, BookSectionItem, BookCloseItem
 
 
 class CommonSpider(scrapy.Spider):
@@ -50,10 +50,13 @@ class CommonSpider(scrapy.Spider):
         return netloc+path
 
 
-class FanrenSpider(CommonSpider):
-    name = 'fanren'
+class BiqugeSpider(CommonSpider):
+    name = 'biquge'
     allowed_domains = ['www.biquge.info']
-    start_urls = ['https://www.biquge.info/22_22533/']
+    start_urls = ['https://www.biquge.info/22_22533/',      # 凡人修仙传仙界篇
+                  'https://www.biquge.info/1_1245/',        # 剑来
+                  'https://www.biquge.info/10_10240/',      # 凡人修仙传
+                  ]
 
     # scrawl main info page
     def parse(self, response):
@@ -77,8 +80,9 @@ class FanrenSpider(CommonSpider):
         assert isinstance(x_introduc, scrapy.selector.SelectorList)
 
         # generate Item
-        itm = BookItem()
+        itm = BookMainItem()
         itm['bookname'] = html.unescape(x_bookname.extract_first().strip())
+        itm['track'] = itm['bookname']
         itm['introduc'] = html.unescape(x_introduc.extract_first().strip())
         itm['authname'] = ''
         itm['category'] = ''
@@ -114,11 +118,13 @@ class FanrenSpider(CommonSpider):
 
         # crawl first section
         abs_href_1st = response.urljoin(href_1st)
-        yield scrapy.Request(abs_href_1st, callback=self.parse_section)
+        yield scrapy.Request(abs_href_1st, callback=self.parse_section, meta={'track': itm['track']})
 
     # scrawl every section page
     def parse_section(self, response):
         assert isinstance(response, scrapy.http.Response)
+
+        track = response.meta['track']
 
         # debug
         x_title = response.css('''title::text''')
@@ -137,7 +143,8 @@ class FanrenSpider(CommonSpider):
         x_section_bottems = x_content.css('''div[class=bottem] a''')
         assert isinstance(x_section_bottems, scrapy.selector.SelectorList)
 
-        itm = SectionItem()
+        itm = BookSectionItem()
+        itm['track'] = track
         itm['section_name'] = x_section_name.extract_first()
         itm['section_data'] = '\r\n'.join(x_section_data.extract())
 
@@ -154,17 +161,23 @@ class FanrenSpider(CommonSpider):
                 break
 
         if href_section_next is None:
-            yield CloseItem()
+            itm = BookCloseItem()
+            itm['track'] = track
+            yield itm
             pass
             print('{} Extrace href section None'.format(title))
         elif len(href_section_next) == 0:
-            yield CloseItem()
+            itm = BookCloseItem()
+            itm['track'] = track
+            yield itm
             pass
             print('{} Extrace href section len is 0'.format(title))
         elif href_section_next.endswith('/'):
-            yield CloseItem()
+            itm = BookCloseItem()
+            itm['track'] = track
+            yield itm
             pass
             print('{} This is the last one section.'.format(title))
         else:
             href_section_next = response.urljoin(href_section_next)
-            yield scrapy.Request(href_section_next, callback=self.parse_section)
+            yield scrapy.Request(href_section_next, callback=self.parse_section, meta={'track': track})

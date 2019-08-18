@@ -8,8 +8,13 @@
 import scrapy
 
 
-class BookItem(scrapy.Item):
-    # This is a BookItem represent a book main page.
+class BookTraceItem(scrapy.Item):
+    # This item contains a track-flag convience for find book context.
+    track = scrapy.Field()
+
+
+class BookMainItem(BookTraceItem):
+    # This item represent a book main page.
     bookname = scrapy.Field()
     authname = scrapy.Field()
     category = scrapy.Field()
@@ -17,12 +22,12 @@ class BookItem(scrapy.Item):
     introduc = scrapy.Field()
 
 
-class SectionItem(scrapy.Item):
-    # This is a SectionItem represent a section content.
+class BookSectionItem(BookTraceItem):
+    # This item represent a section content.
     section_name = scrapy.Field()
     section_data = scrapy.Field()
 
 
-class CloseItem(scrapy.Item):
-    # This is a CloseItem represent a book reach ends.
+class BookCloseItem(BookTraceItem):
+    # This item represent a book reach ends.
     book_end = scrapy.Field()
