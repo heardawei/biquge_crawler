@@ -3,7 +3,7 @@ import scrapy
 import urllib
 import html
 import re
-from biquge_scrawler.items import BookMainItem, BookSectionItem, BookCloseItem
+from biquge_scrawler.items import BookMainItem, BookDircItem, BookSectionItem, BookCloseItem, BookMainItemLoader, BookDircItemLoader, BookSectionItemLoader
 
 
 class CommonSpider(scrapy.Spider):
@@ -58,7 +58,7 @@ class BiqugeSpider(CommonSpider):
                   'https://www.biquge.info/10_10240/',      # 凡人修仙传
                   ]
 
-    # scrawl main info page
+    # parse main info page
     def parse(self, response):
         assert isinstance(response, scrapy.http.Response)
 
@@ -66,61 +66,51 @@ class BiqugeSpider(CommonSpider):
         # print('Main page URL: {}'.format(response.url))
         self.page_2_local(response)
 
-        # xpath for book main page
-        x_maininfo = response.xpath(
-            '''//div[@class='box_con']/div[@id='maininfo']''')
-        assert isinstance(x_maininfo, scrapy.selector.SelectorList)
-        x_info = x_maininfo.xpath('''./div[@id='info']''')
-        assert isinstance(x_info, scrapy.selector.SelectorList)
-        x_bookname = x_info.css('''h1::text''')
-        x_attribut = x_info.css('''p::text''')
-        assert isinstance(x_info, scrapy.selector.SelectorList)
-        assert isinstance(x_info, scrapy.selector.SelectorList)
-        x_introduc = x_maininfo.css('''div[id=intro] p::text''')
-        assert isinstance(x_introduc, scrapy.selector.SelectorList)
+        track = response.url
 
-        # generate Item
-        itm = BookMainItem()
-        itm['bookname'] = html.unescape(x_bookname.extract_first().strip())
-        itm['track'] = itm['bookname']
-        itm['introduc'] = html.unescape(x_introduc.extract_first().strip())
-        itm['authname'] = ''
-        itm['category'] = ''
-        itm['updatetm'] = ''
+        # Item Loader
+        main_loader = BookMainItemLoader(BookMainItem(), response=response)
+        # Using Item Loader to populate items
+        main_loader.add_css(
+            'bookname', '''div#maininfo>div#info>h1::text''')
+        main_loader.add_css(
+            'authname', '''div#maininfo>div#info>p:nth-of-type(1)::text''')
+        main_loader.add_css(
+            'category', '''div#maininfo>div#info>p:nth-of-type(2)::text''')
+        main_loader.add_css(
+            'updatetm', '''div#maininfo>div#info>p:nth-of-type(3)::text''')
+        main_loader.add_css(
+            'lastsect', '''div#maininfo>div#info>p:nth-of-type(4)>a:nth-of-type(1)::text''')
+        main_loader.add_css(
+            'introduc', '''div#maininfo>div#intro>p::text''')
+        main_loader.add_value('track', track)
 
-        for _attri in x_attribut.extract():
-            _attri = html.unescape(_attri)
-            if re.match('''作\\s*者''', _attri):
-                itm['authname'] = _attri.split(':', 1)[1].strip()
-            elif re.match('''类\\s*别''', _attri):
-                itm['category'] = _attri.split(':', 1)[1].strip()
-            elif re.match('''最\\s*后\\s*更\\s*新''', _attri):
-                itm['updatetm'] = _attri.split(':', 1)[1].strip()
+        yield main_loader.load_item()
 
-        # print('bookname: {}'.format(itm['bookname']))
-        # print('authname: {}'.format(itm['authname']))
-        # print('category: {}'.format(itm['category']))
-        # print('updatetm: {}'.format(itm['updatetm']))
-        # print('introduc: {}'.format(itm['introduc']))
+        # Item Loader
+        dirc_loader = BookDircItemLoader(BookDircItem(), response=response)
+        # Using Item Loader to populate items
+        dirc_loader.add_css(
+            'sections', '''div.box_con>div#list>dl>dd>a[href*=html][title]::attr(title)''')
+        dirc_loader.add_value('track', track)
 
-        yield itm
-
-        # xpath for sections
-        x_sections = response.css(
-            '''div[class=box_con] div[id=list] dl dd a[href*=html]''')
-        assert isinstance(x_sections, scrapy.selector.SelectorList)
-        x_hrefs = x_sections.css('''a::attr(href)''')
-        assert isinstance(x_hrefs, scrapy.selector.SelectorList)
-
-        # first section
-        href_1st = x_hrefs.extract_first().strip()
-        assert isinstance(href_1st, str) and href_1st
+        yield dirc_loader.load_item()
 
         # crawl first section
-        abs_href_1st = response.urljoin(href_1st)
-        yield scrapy.Request(abs_href_1st, callback=self.parse_section, meta={'track': itm['track']})
 
-    # scrawl every section page
+        # xpath for sections hrefs
+        x_href_1st = response.css(
+            '''div.box_con>div#list>dl>dd:nth-of-type(1)>a::attr(href)''')
+        assert isinstance(x_href_1st, scrapy.selector.SelectorList)
+
+        # first section hrefs
+        href_1st = x_href_1st.extract_first().strip()
+        assert isinstance(href_1st, str) and href_1st
+
+        abs_href_1st = response.urljoin(href_1st)
+        yield scrapy.Request(abs_href_1st, callback=self.parse_section, meta={'track': track})
+
+    # parse section page
     def parse_section(self, response):
         assert isinstance(response, scrapy.http.Response)
 
@@ -133,51 +123,43 @@ class BiqugeSpider(CommonSpider):
         # print('Section page Title:{}, URL: {}'.format(title, response.url))
         self.page_2_local(response)
 
-        # content xpath
-        x_content = response.css('''div[class=content_read]''')
-        assert isinstance(x_content, scrapy.selector.SelectorList)
-        x_section_name = x_content.css('''div[class=bookname] h1::text''')
-        assert isinstance(x_section_name, scrapy.selector.SelectorList)
-        x_section_data = x_content.css('''div[id=content]::text''')
-        assert isinstance(x_section_data, scrapy.selector.SelectorList)
-        x_section_bottems = x_content.css('''div[class=bottem] a''')
-        assert isinstance(x_section_bottems, scrapy.selector.SelectorList)
+        # Item Loader
+        sect_loader = BookSectionItemLoader(
+            BookSectionItem(), response=response)
+        # Using Item Loader to populate items
+        sect_loader.add_value('track', track)
+        sect_loader.add_css(
+            'section_name', '''div.content_read div.bookname>h1::text''')
+        sect_loader.add_css(
+            'section_data', '''div.content_read div#content::text''')
 
-        itm = BookSectionItem()
-        itm['track'] = track
-        itm['section_name'] = x_section_name.extract_first()
-        itm['section_data'] = '\r\n'.join(x_section_data.extract())
+        yield sect_loader.load_item()
 
-        yield itm
+        # crawl next section page
+        x_next_section_href = response.css(
+            '''div.content_read div.bottem>a:nth-of-type(4)::attr(href)''')
+        assert isinstance(x_next_section_href, scrapy.selector.SelectorList)
 
-        # extract next section URL
-        href_section_next = ''
-        for _x_bottem in x_section_bottems:
-            assert isinstance(_x_bottem, scrapy.selector.Selector)
-            button = _x_bottem.css('''a::text''').extract_first()
-            href = _x_bottem.css('''a::attr(href)''').extract_first()
-            if re.match('下\\s*一\\s*章', button):
-                href_section_next = href
-                break
+        next_section_href = x_next_section_href.extract_first()
 
-        if href_section_next is None:
+        if next_section_href is None:
             itm = BookCloseItem()
             itm['track'] = track
             yield itm
             pass
             print('{} Extrace href section None'.format(title))
-        elif len(href_section_next) == 0:
+        elif len(next_section_href) == 0:
             itm = BookCloseItem()
             itm['track'] = track
             yield itm
             pass
             print('{} Extrace href section len is 0'.format(title))
-        elif href_section_next.endswith('/'):
+        elif next_section_href.endswith('/'):
             itm = BookCloseItem()
             itm['track'] = track
             yield itm
             pass
             print('{} This is the last one section.'.format(title))
         else:
-            href_section_next = response.urljoin(href_section_next)
-            yield scrapy.Request(href_section_next, callback=self.parse_section, meta={'track': track})
+            next_section_href = response.urljoin(next_section_href)
+            yield scrapy.Request(next_section_href, callback=self.parse_section, meta={'track': track})
