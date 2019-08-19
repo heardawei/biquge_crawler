@@ -6,7 +6,7 @@
 # See: https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 
 import scrapy
-from biquge_scrawler.items import BookMainItem, BookDircItem, BookSectionItem, BookCloseItem
+from biquge_crawler.items import BookMainItem, BookDircItem, BookSectionItem, BookCloseItem
 
 
 def to_utf8_bytes(str):

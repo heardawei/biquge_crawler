@@ -3,11 +3,11 @@ import scrapy
 import urllib
 import html
 import re
-from biquge_scrawler.items import BookMainItem, BookDircItem, BookSectionItem, BookCloseItem, BookMainItemLoader, BookDircItemLoader, BookSectionItemLoader
+from biquge_crawler.items import BookMainItem, BookDircItem, BookSectionItem, BookCloseItem, BookMainItemLoader, BookDircItemLoader, BookSectionItemLoader
 
 
 class CommonSpider(scrapy.Spider):
-    name = 'biquge_scrawler'
+    name = 'biquge_crawler'
 
     def __init__(self):
         self._debug = False
