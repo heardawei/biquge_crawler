@@ -5,7 +5,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: 笔趣阁 Crawler (External Terminal)",
+            "name": "Python: 笔趣阁 Crawler (Integrated Terminal)",
             "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}\\crawl.py",
